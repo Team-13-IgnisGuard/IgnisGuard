@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: lpg-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  mongodb:
+    image: mongo:6.0
+    container_name: lpg-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/var/lib/mongodb
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: lpg-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+volumes:
+  mysql-data:
+  mongo-data:
+  rabbitmq-data:
