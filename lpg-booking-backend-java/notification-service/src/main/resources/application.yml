@@ -14,9 +14,13 @@ notification:
   email-log-path: ./mock_emails.txt
 
 # SMS is OFF by default so the app works out of the box without a paid account.
-# To send real SMS: sign up at fast2sms.com, set enabled: true and paste your API key below.
+# To send real SMS: sign up at twilio.com, get an Account SID, Auth Token, and a
+# Twilio phone number, then set enabled: true and fill in the three values below.
 # Until then, every SMS is simulated and written to the same log file as the mock emails.
 sms:
   enabled: false
-  api-key: YOUR_FAST2SMS_API_KEY_HERE
-  api-url: https://www.fast2sms.com/dev/bulkV2
+
+twilio:
+  account-sid: YOUR_TWILIO_ACCOUNT_SID
+  auth-token: YOUR_TWILIO_AUTH_TOKEN
+  from-number: YOUR_TWILIO_PHONE_NUMBER   # e.g. +15017122661 — must be a number Twilio gave you
