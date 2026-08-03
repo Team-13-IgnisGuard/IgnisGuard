@@ -1,0 +1,11 @@
+================================================================================
+To: tejas@gmail.com
+Subject: Welcome to LPG Cylinder Booking!
+Date: 2026-07-29T12:36:03.641720600
+
+Hello Tejas Patil,
+
+Your registration was successful. Welcome to the LPG Cylinder Booking & Distribution Management System!
+You can now log in and complete your gas connection profile to start booking cylinder refills.
+================================================================================
+
