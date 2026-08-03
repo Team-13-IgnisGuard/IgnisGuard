@@ -1,0 +1,26 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: notification-service
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+notification:
+  email-log-path: ./mock_emails.txt
+
+# SMS is OFF by default so the app works out of the box without a paid account.
+# To send real SMS: sign up at twilio.com, get an Account SID, Auth Token, and a
+# Twilio phone number, then set enabled: true and fill in the three values below.
+# Until then, every SMS is simulated and written to the same log file as the mock emails.
+sms:
+  enabled: false
+
+twilio:
+  account-sid: YOUR_TWILIO_ACCOUNT_SID
+  auth-token: YOUR_TWILIO_AUTH_TOKEN
+  from-number: YOUR_TWILIO_PHONE_NUMBER   # e.g. +15017122661 — must be a number Twilio gave you
