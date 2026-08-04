@@ -1,6 +1,7 @@
 package com.lpg.booking.entity;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigDecimal;
@@ -12,6 +13,9 @@ public class Booking {
     @Id
     private Long id;
 
+    @Version
+    private Long version;
+
     private Long customerId;
     private Integer distributorId;
     private Integer deliveryAgentId;
@@ -22,10 +26,14 @@ public class Booking {
     private BigDecimal totalAmount;
     private String razorpayOrderId;
     private String deliveryOtp;
+    private int deliveryOtpAttempts;
 
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public Long getCustomerId() { return customerId; }
     public void setCustomerId(Long customerId) { this.customerId = customerId; }
@@ -56,4 +64,7 @@ public class Booking {
 
     public String getDeliveryOtp() { return deliveryOtp; }
     public void setDeliveryOtp(String deliveryOtp) { this.deliveryOtp = deliveryOtp; }
+
+    public int getDeliveryOtpAttempts() { return deliveryOtpAttempts; }
+    public void setDeliveryOtpAttempts(int deliveryOtpAttempts) { this.deliveryOtpAttempts = deliveryOtpAttempts; }
 }

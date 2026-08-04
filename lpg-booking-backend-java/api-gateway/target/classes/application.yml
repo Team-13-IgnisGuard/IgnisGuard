@@ -1,0 +1,37 @@
+server:
+  port: 5000
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+        - id: booking-service
+          uri: lb://booking-service
+          predicates:
+            - Path=/api/customer/**, /api/booking/**, /api/payment/**, /api/distributor/bookings/**, /api/deliveryagent/deliveries/**, /api/admin/customers/**, /api/admin/bookings/**
+        - id: distribution-service
+          uri: lb://distribution-service
+          predicates:
+            - Path=/api/distributor/**, /api/deliveryagent/**, /api/admin/distributors/**, /api/admin/agents/**
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
+jwt:
+  secret: SuperSecretKeyForLpgBookingApiByAntigravityAgent123456789
