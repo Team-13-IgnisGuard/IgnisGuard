@@ -1,0 +1,37 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: booking-service
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/lpg_bookings
+  rabbitmq:
+    host: localhost
+    port: 5673
+    username: guest
+    password: guest
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
+razorpay:
+  # REAL Razorpay credentials required now — this project creates actual
+  # orders against Razorpay's API. Sign up free at https://razorpay.com,
+  # switch to Test Mode, and copy these from Settings > API Keys.
+  # Test mode lets you simulate full payments with test card/UPI details,
+  # with no real money moving, so this is safe and free to set up.
+  key_id : rzp_test_TM83dQ7c5n9hi8
+  key_secret : lEKkam7uvtcAL0WdvaN1WFP0
+
+booking:
+  # Minimum gap between refills. Production default should be 36000 (= 25 days).
+  # Currently set to 2 minutes for testing the delivery/refill cycle end to end.
+  # Set this back to 36000 before your actual demo/submission — and update the
+  # matching REFILL_GAP_MINUTES constant in BookCylinder.jsx to stay in sync.
+  refill-gap-minutes: 2
