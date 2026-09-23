@@ -11,6 +11,13 @@ const customerService = {
     return response.data; // Returns CustomerResponseDto
   },
 
+  updateProfile: async (profileData) => {
+    // Only address/city/state/pinCode/mobileNumber — connection number and
+    // preferred distributor are locked after initial setup, see EditProfile.jsx
+    const response = await api.put('/customer/profile', profileData);
+    return response.data; // Returns CustomerResponseDto
+  },
+
   getDistributors: async () => {
     const response = await api.get('/customer/distributors');
     return response.data; // Returns array of { id, agencyName, address, contactNumber, currentStock }

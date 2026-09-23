@@ -17,6 +17,8 @@ import EditProfile from './pages/customer/EditProfile';
 import Profile from './pages/customer/Profile';
 import BookCylinder from './pages/customer/BookCylinder';
 import BookingHistory from './pages/customer/BookingHistory';
+import MyComplaints from './pages/customer/MyComplaints';
+import P2PTransfer from './pages/customer/P2PTransfer';
 
 // Distributor Pages
 import DistributorDashboard from './pages/distributor/DistributorDashboard';
@@ -39,6 +41,7 @@ import CustomerList from './pages/admin/CustomerList';
 import DistributorList from './pages/admin/DistributorList';
 import AgentList from './pages/admin/AgentList';
 import AdminBookingList from './pages/admin/AdminBookingList';
+import ComplaintManagement from './pages/admin/ComplaintManagement';
 
 // Error Pages
 import NotFound from './pages/error/NotFound';
@@ -78,7 +81,7 @@ function App() {
             <Route 
               path="/profile" 
               element={
-                <ProtectedRoute allowedRoles={['Customer', 'Distributor', 'DeliveryAgent', 'Admin']}>
+                <ProtectedRoute allowedRoles={['Customer', 'Distributor', 'DeliveryAgent', 'Admin', 'SuperAdmin', 'WarehouseManager']}>
                   <Profile />
                 </ProtectedRoute>
               } 
@@ -104,6 +107,22 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['Customer']}>
                   <BookingHistory />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/customer/complaints" 
+              element={
+                <ProtectedRoute allowedRoles={['Customer']}>
+                  <MyComplaints />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/customer/p2p-transfer" 
+              element={
+                <ProtectedRoute allowedRoles={['Customer']}>
+                  <P2PTransfer />
                 </ProtectedRoute>
               } 
             />
@@ -199,6 +218,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['Admin']}>
                   <AdminBookingList />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/complaints" 
+              element={
+                <ProtectedRoute allowedRoles={['Admin']}>
+                  <ComplaintManagement />
                 </ProtectedRoute>
               } 
             />

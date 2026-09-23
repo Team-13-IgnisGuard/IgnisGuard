@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import customerService from '../../services/customerService';
 import bookingService from '../../services/bookingService';
+import LiveTrackingMap from '../../components/LiveTrackingMap';
 
 const CustomerDashboard = () => {
   const [profile, setProfile] = useState(null);
@@ -241,6 +242,17 @@ const CustomerDashboard = () => {
                       {b.status === 'OutForDelivery' && b.deliveryOtp && (
                         <div className="mt-2 p-2 rounded border border-warning border-opacity-25 text-warning bg-warning bg-opacity-10 d-inline-block small fw-bold" style={{ fontSize: '0.8rem' }}>
                           <i className="bi bi-shield-lock-fill me-1"></i> Delivery OTP: {b.deliveryOtp}
+                        </div>
+                      )}
+                      {b.status === 'OutForDelivery' && (
+                        <div className="mt-3">
+                          <LiveTrackingMap
+                            bookingId={b.id}
+                            address={b.address}
+                            city={b.city}
+                            state={b.state}
+                            pinCode={b.pinCode}
+                          />
                         </div>
                       )}
                     </div>

@@ -9,7 +9,7 @@ const Profile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(user?.role !== 'Admin');
+  const [loading, setLoading] = useState(!['Admin', 'SuperAdmin', 'WarehouseManager'].includes(user?.role));
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
@@ -211,7 +211,7 @@ const Profile = () => {
               </div>
             )}
 
-            {user?.role === 'Admin' && (
+            {(user?.role === 'Admin' || user?.role === 'SuperAdmin' || user?.role === 'WarehouseManager') && (
               <div className="d-flex flex-column gap-3 mb-4">
                 <div className="row border-bottom border-secondary border-opacity-10 pb-2 align-items-center">
                   <div className="col-5 text-secondary small">Registered Name:</div>
@@ -224,8 +224,8 @@ const Profile = () => {
                 <div className="row border-bottom border-secondary border-opacity-10 pb-2 align-items-center">
                   <div className="col-5 text-secondary small">System Role:</div>
                   <div className="col-7">
-                    <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-30">
-                      System Administrator
+                    <span className={`badge ${user.role === 'SuperAdmin' ? 'bg-danger' : user.role === 'WarehouseManager' ? 'bg-primary' : 'bg-warning'} bg-opacity-10 ${user.role === 'SuperAdmin' ? 'text-danger border-danger' : user.role === 'WarehouseManager' ? 'text-primary border-primary' : 'text-warning border-warning'} border border-opacity-30`}>
+                      {user.role === 'SuperAdmin' ? 'Super Administrator' : user.role === 'WarehouseManager' ? 'Warehouse Manager' : 'System Administrator'}
                     </span>
                   </div>
                 </div>

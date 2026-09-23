@@ -764,9 +764,29 @@ main .text-light-emphasis:not(.btn):not(.badge):not(.badge-status):not(.badge-st
 }
 @media (max-width: 991.98px) {
   .sidebar-wrapper-custom {
-    border-bottom: 1px solid var(--border-color);
-    border-right: none !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 280px;
+    max-width: 85vw;
+    z-index: 1050;
+    border-right: 1px solid var(--border-color) !important;
+    border-bottom: none !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease-in-out;
+    overflow-y: auto;
   }
+  .sidebar-wrapper-custom.sidebar-open {
+    transform: translateX(0);
+  }
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1040;
 }
 
 /* Custom Input Placeholder Accessibility styles */

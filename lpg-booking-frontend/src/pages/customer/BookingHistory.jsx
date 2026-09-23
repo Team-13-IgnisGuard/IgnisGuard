@@ -1,22 +1,18 @@
 import { useEffect, useState } from 'react';
 import bookingService from '../../services/bookingService';
 import paymentService from '../../services/paymentService';
+import complaintService from '../../services/complaintService';
+import { openRazorpayCheckout } from '../../services/razorpayCheckout';
 
 const BookingHistory = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
-  
-  // Settle Payment Modal States
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [touched, setTouched] = useState({});
-  const [errors, setErrors] = useState({});
-  
+
+  // Settle Payment state — no custom form needed anymore, the real
+  // Razorpay widget handles all payment method UI itself.
+  const [paymentLoadingId, setPaymentLoadingId] = useState(null);
+
   // Invoice states
   const [invoiceBooking, setInvoiceBooking] = useState(null);
 
@@ -24,6 +20,47 @@ const BookingHistory = () => {
   const [cancelBooking, setCancelBooking] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState('');
+
+  // Complaint modal states
+  const [complaintBooking, setComplaintBooking] = useState(null);
+  const [complaintCategory, setComplaintCategory] = useState('LateDelivery');
+  const [complaintDescription, setComplaintDescription] = useState('');
+  const [complaintLoading, setComplaintLoading] = useState(false);
+  const [complaintError, setComplaintError] = useState('');
+  const [complaintSuccess, setComplaintSuccess] = useState('');
+
+  const openComplaintModal = (booking) => {
+    setComplaintBooking(booking);
+    setComplaintCategory('LateDelivery');
+    setComplaintDescription('');
+    setComplaintError('');
+    setComplaintSuccess('');
+  };
+
+  const handleSubmitComplaint = async (e) => {
+    e.preventDefault();
+    setComplaintError('');
+    if (complaintDescription.trim().length < 10) {
+      setComplaintError('Please describe the issue in at least 10 characters.');
+      return;
+    }
+    setComplaintLoading(true);
+    try {
+      await complaintService.raiseComplaint(complaintBooking.id, complaintCategory, complaintDescription.trim());
+      setComplaintSuccess('Complaint submitted. Our team will review it shortly.');
+      setTimeout(() => setComplaintBooking(null), 1800);
+    } catch (err) {
+      console.error(err);
+      const backendErrors = err.response?.data?.errors;
+      setComplaintError(
+        (Array.isArray(backendErrors) && backendErrors.join(', ')) ||
+        err.response?.data?.message ||
+        'Could not submit complaint. Please try again.'
+      );
+    } finally {
+      setComplaintLoading(false);
+    }
+  };
 
   const fetchBookings = async () => {
     try {
@@ -66,105 +103,47 @@ const BookingHistory = () => {
     return `${expected.toLocaleDateString()} (Expected)`;
   };
 
-  // Card validations
-  const validateCard = (name, value) => {
-    let error = '';
-    if (name === 'cardNumber') {
-      if (!value) {
-        error = 'Card number is required.';
-      } else if (!/^\d{16}$/.test(value.replace(/\s+/g, ''))) {
-        error = 'Please enter a valid 16-digit credit card number.';
-      }
-    } else if (name === 'cardExpiry') {
-      if (!value) {
-        error = 'Expiry date is required.';
-      } else {
-        const match = value.match(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/);
-        if (!match) {
-          error = 'Expiry date must be in MM/YY format.';
-        } else {
-          const month = parseInt(match[1], 10);
-          const year = parseInt(match[2], 10);
-          
-          const currentDate = new Date();
-          const currentMonth = currentDate.getMonth() + 1;
-          const currentYear = currentDate.getFullYear() % 100;
-          
-          if (year < currentYear || (year === currentYear && month < currentMonth)) {
-            error = 'Expiry date must be in the future.';
-          }
+  const openCheckout = (booking) => {
+    setErrorMsg('');
+    setPaymentLoadingId(booking.id);
+
+    openRazorpayCheckout({
+      keyId: booking.razorpayKeyId,
+      orderId: booking.razorpayOrderId,
+      amountInPaise: booking.razorpayAmountInPaise,
+      name: 'LPG Cylinder Booking',
+      description: `Settle payment for Booking #${booking.id}`,
+      onSuccess: async (response) => {
+        try {
+          await paymentService.verifyPayment(
+            booking.id,
+            response.razorpay_order_id,
+            response.razorpay_payment_id,
+            response.razorpay_signature,
+            'RAZORPAY'
+          );
+          setLoading(true);
+          await fetchBookings();
+        } catch (err) {
+          console.error(err);
+          const backendErrors = err.response?.data?.errors;
+          alert(
+            (Array.isArray(backendErrors) && backendErrors.join(', ')) ||
+            err.response?.data?.message ||
+            'Payment verification failed. If money was deducted, contact support with your booking ID.'
+          );
+        } finally {
+          setPaymentLoadingId(null);
         }
-      }
-    } else if (name === 'cardCvv') {
-      if (!value) {
-        error = 'CVV is required.';
-      } else if (!/^\d{3}$/.test(value)) {
-        error = 'CVV must be exactly 3 digits.';
-      }
-    }
-    return error;
-  };
-
-  const handleCardChange = (e) => {
-    const { name, value } = e.target;
-    if (name === 'cardNumber') setCardNumber(value.replace(/\D/g, '').substring(0, 16));
-    if (name === 'cardExpiry') {
-      let val = value.replace(/\D/g, '');
-      if (val.length >= 2) {
-        val = val.substring(0, 2) + '/' + val.substring(2, 4);
-      }
-      setCardExpiry(val.substring(0, 5));
-    }
-    if (name === 'cardCvv') setCardCvv(value.replace(/\D/g, '').substring(0, 3));
-
-    if (touched[name]) {
-      const err = validateCard(name, value);
-      setErrors(prev => ({ ...prev, [name]: err }));
-    }
-  };
-
-  const openPaymentModal = (booking) => {
-    setSelectedBooking(booking);
-    setShowPaymentModal(true);
-    setCardNumber('');
-    setCardExpiry('');
-    setCardCvv('');
-    setTouched({});
-    setErrors({});
-  };
-
-  const handlePaymentSubmit = async (e) => {
-    e.preventDefault();
-
-    const newTouched = { cardNumber: true, cardExpiry: true, cardCvv: true };
-    setTouched(newTouched);
-
-    const cardErr = validateCard('cardNumber', cardNumber);
-    const expErr = validateCard('cardExpiry', cardExpiry);
-    const cvvErr = validateCard('cardCvv', cardCvv);
-
-    if (cardErr || expErr || cvvErr) {
-      setErrors({ cardNumber: cardErr, cardExpiry: expErr, cardCvv: cvvErr });
-      return;
-    }
-
-    setPaymentLoading(true);
-    try {
-      await paymentService.verifyPayment(
-        selectedBooking.id,
-        selectedBooking.razorpayOrderId,
-        `pay_sim_${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
-        `sig_sim_${Math.random().toString(36).substring(2, 12).toUpperCase()}`
-      );
-      setShowPaymentModal(false);
-      setLoading(true);
-      await fetchBookings();
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || 'Payment failed.');
-    } finally {
-      setPaymentLoading(false);
-    }
+      },
+      onError: (message) => {
+        setErrorMsg(message);
+        setPaymentLoadingId(null);
+      },
+      onDismiss: () => {
+        setPaymentLoadingId(null);
+      },
+    });
   };
 
   const showInvoice = (booking) => {
@@ -262,8 +241,16 @@ const BookingHistory = () => {
                     <td className="text-end">
                       <div className="d-inline-flex gap-2">
                         {b.status === 'PendingPayment' && (
-                          <button onClick={() => openPaymentModal(b)} className="btn btn-gradient-primary btn-sm rounded-pill px-3">
-                            <i className="bi bi-wallet2"></i> Pay
+                          <button
+                            onClick={() => openCheckout(b)}
+                            className="btn btn-gradient-primary btn-sm rounded-pill px-3"
+                            disabled={paymentLoadingId === b.id}
+                          >
+                            {paymentLoadingId === b.id ? (
+                              <span className="spinner-border spinner-border-sm" role="status"></span>
+                            ) : (
+                              <><i className="bi bi-wallet2"></i> Pay</>
+                            )}
                           </button>
                         )}
                         {b.status !== 'PendingPayment' && b.status !== 'Cancelled' && (
@@ -280,98 +267,17 @@ const BookingHistory = () => {
                             <i className="bi bi-x-circle"></i> Cancel
                           </button>
                         )}
+                        {b.status !== 'PendingPayment' && b.status !== 'Cancelled' && (
+                          <button onClick={() => openComplaintModal(b)} className="btn btn-outline-warning btn-sm rounded-pill px-3">
+                            <i className="bi bi-flag"></i> Complaint
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Settle Payment Modal */}
-      {showPaymentModal && selectedBooking && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(11, 15, 25, 0.85)', backdropFilter: 'blur(8px)' }}>
-          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '440px' }}>
-            <div className="modal-content glass-panel p-4 border border-secondary border-opacity-30">
-              <div className="modal-header border-0 pb-0">
-                <h5 className="modal-title text-white">Razorpay Secure Payment</h5>
-                <button type="button" className="btn-close" onClick={() => setShowPaymentModal(false)} disabled={paymentLoading}></button>
-              </div>
-              <div className="modal-body text-secondary small py-4">
-                <p>Settle payment for Booking: <span className="text-white fw-semibold">#{selectedBooking.id}</span></p>
-                <div className="d-flex justify-content-between mb-4 bg-secondary p-3 rounded-3" style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                  <span>Amount to Settle:</span>
-                  <span className="text-orange fw-bold" style={{ color: '#ff5e36' }}>₹ {selectedBooking.totalAmount}</span>
-                </div>
-
-                <form onSubmit={handlePaymentSubmit}>
-                  <div className="mb-3">
-                    <label className="form-label form-label-custom" htmlFor="cardNumber">16-Digit Card Number</label>
-                    <input
-                      id="cardNumber"
-                      name="cardNumber"
-                      type="text"
-                      className={`form-control form-control-custom ${touched.cardNumber && errors.cardNumber ? 'is-invalid-custom' : ''}`}
-                      placeholder="4111 2222 3333 4444"
-                      value={cardNumber}
-                      onChange={handleCardChange}
-                      onBlur={() => setTouched({ ...touched, cardNumber: true })}
-                      disabled={paymentLoading}
-                    />
-                    {touched.cardNumber && errors.cardNumber && (
-                      <div className="invalid-feedback-custom">{errors.cardNumber}</div>
-                    )}
-                  </div>
-                  <div className="row g-3 mb-4">
-                    <div className="col-6">
-                      <label className="form-label form-label-custom" htmlFor="cardExpiry">Expiry Date</label>
-                      <input
-                        id="cardExpiry"
-                        name="cardExpiry"
-                        type="text"
-                        className={`form-control form-control-custom ${touched.cardExpiry && errors.cardExpiry ? 'is-invalid-custom' : ''}`}
-                        placeholder="MM/YY"
-                        value={cardExpiry}
-                        onChange={handleCardChange}
-                        onBlur={() => setTouched({ ...touched, cardExpiry: true })}
-                        disabled={paymentLoading}
-                      />
-                      {touched.cardExpiry && errors.cardExpiry && (
-                        <div className="invalid-feedback-custom">{errors.cardExpiry}</div>
-                      )}
-                    </div>
-                    <div className="col-6">
-                      <label className="form-label form-label-custom" htmlFor="cardCvv">CVV Code</label>
-                      <input
-                        id="cardCvv"
-                        name="cardCvv"
-                        type="password"
-                        className={`form-control form-control-custom ${touched.cardCvv && errors.cardCvv ? 'is-invalid-custom' : ''}`}
-                        placeholder="123"
-                        value={cardCvv}
-                        onChange={handleCardChange}
-                        onBlur={() => setTouched({ ...touched, cardCvv: true })}
-                        disabled={paymentLoading}
-                      />
-                      {touched.cardCvv && errors.cardCvv && (
-                        <div className="invalid-feedback-custom">{errors.cardCvv}</div>
-                      )}
-                    </div>
-                  </div>
-                  <button type="submit" className="btn btn-success w-100 rounded-pill py-2.5 d-flex align-items-center justify-content-center gap-2" disabled={paymentLoading}>
-                    {paymentLoading ? (
-                      <span className="spinner-border spinner-border-sm" role="status"></span>
-                    ) : (
-                      <>
-                        <i className="bi bi-wallet2"></i> Pay ₹ {selectedBooking.totalAmount}
-                      </>
-                    )}
-                  </button>
-                </form>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -484,6 +390,88 @@ const BookingHistory = () => {
                     <><i className="bi bi-x-circle"></i> Yes, Cancel</>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Raise Complaint Modal */}
+      {complaintBooking && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(11, 15, 25, 0.85)', backdropFilter: 'blur(8px)' }}>
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '460px' }}>
+            <div className="modal-content glass-panel p-4 border border-warning border-opacity-20">
+              <div className="modal-header border-0 pb-0">
+                <div className="d-flex align-items-center gap-2">
+                  <i className="bi bi-flag-fill text-warning fs-5"></i>
+                  <h5 className="modal-title text-white mb-0">Raise a Complaint</h5>
+                </div>
+                <button type="button" className="btn-close" onClick={() => setComplaintBooking(null)} disabled={complaintLoading}></button>
+              </div>
+              <div className="modal-body py-3">
+                <p className="text-secondary small mb-3">
+                  Regarding <span className="text-white fw-semibold">Booking #{complaintBooking.id}</span>
+                </p>
+
+                {complaintSuccess ? (
+                  <div className="alert alert-success border-success-subtle bg-success bg-opacity-10 text-success rounded-3 small p-3 mb-0">
+                    <i className="bi bi-check-circle-fill me-2"></i>{complaintSuccess}
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmitComplaint}>
+                    <label className="text-secondary small mb-1 d-block">Category</label>
+                    <select
+                      className="form-select form-control-custom text-white mb-3"
+                      value={complaintCategory}
+                      onChange={(e) => setComplaintCategory(e.target.value)}
+                      disabled={complaintLoading}
+                    >
+                      <option value="LateDelivery">Late Delivery</option>
+                      <option value="DamagedCylinder">Damaged Cylinder</option>
+                      <option value="WrongAmountCharged">Wrong Amount Charged</option>
+                      <option value="AgentBehaviour">Delivery Agent Behaviour</option>
+                      <option value="LeakageSafety">Leakage / Safety Concern</option>
+                      <option value="Other">Other</option>
+                    </select>
+
+                    <label className="text-secondary small mb-1 d-block">Describe the issue</label>
+                    <textarea
+                      className="form-control form-control-custom text-white mb-3"
+                      rows="4"
+                      placeholder="Please provide details so our team can help resolve this..."
+                      value={complaintDescription}
+                      onChange={(e) => setComplaintDescription(e.target.value)}
+                      disabled={complaintLoading}
+                    />
+
+                    {complaintError && (
+                      <div className="alert alert-danger border-danger-subtle bg-danger bg-opacity-10 text-danger rounded-3 small p-2 mb-3">
+                        {complaintError}
+                      </div>
+                    )}
+
+                    <div className="d-flex justify-content-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setComplaintBooking(null)}
+                        className="btn btn-outline-light btn-sm rounded-pill px-4"
+                        disabled={complaintLoading}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn btn-warning btn-sm rounded-pill px-4"
+                        disabled={complaintLoading}
+                      >
+                        {complaintLoading ? (
+                          <span className="spinner-border spinner-border-sm" role="status"></span>
+                        ) : (
+                          <><i className="bi bi-send"></i> Submit Complaint</>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>

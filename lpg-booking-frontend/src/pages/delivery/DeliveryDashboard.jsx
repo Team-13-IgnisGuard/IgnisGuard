@@ -30,6 +30,12 @@ const DeliveryDashboard = () => {
   const [refillMsg, setRefillMsg] = useState('');
   const [refillError, setRefillError] = useState('');
 
+  // Live location broadcasting — only runs while this agent has a booking
+  // that's actually OutForDelivery. The moment that's no longer true (never
+  // had one, or it just got marked Delivered/Failed), broadcasting stops.
+  const [locationSharing, setLocationSharing] = useState(false);
+  const [locationError, setLocationError] = useState('');
+
   const fetchDeliveries = async () => {
     try {
       const list = await bookingService.getAgentDeliveries();
@@ -50,6 +56,45 @@ const DeliveryDashboard = () => {
   useEffect(() => {
     fetchDeliveries();
   }, []);
+
+  // Conditional tracking: this effect re-evaluates every time `deliveries`
+  // changes. It starts broadcasting only if an OutForDelivery booking
+  // exists, and always cleans up (clearWatch) on the way out — including
+  // when the booking's status flips away from OutForDelivery, since that
+  // triggers this effect to re-run with a fresh `deliveries` value.
+  useEffect(() => {
+    const hasActiveDelivery = deliveries.some((d) => d.status === 'OutForDelivery');
+    if (!hasActiveDelivery) {
+      setLocationSharing(false);
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationError('This browser does not support location sharing.');
+      return;
+    }
+
+    setLocationSharing(true);
+    setLocationError('');
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        bookingService
+          .updateAgentLocation(position.coords.latitude, position.coords.longitude)
+          .catch((err) => console.error('Location broadcast failed (will retry on next update):', err));
+      },
+      (err) => {
+        console.error(err);
+        setLocationError('Could not access your location. Enable location permissions to share live tracking.');
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 8000 }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      setLocationSharing(false);
+    };
+  }, [deliveries]);
 
   const handleStatusUpdate = async (bookingId, nextStatus) => {
     if (nextStatus === 'DeliveryFailed') {
@@ -172,10 +217,23 @@ const DeliveryDashboard = () => {
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-4">
-        <h2 className="text-white mb-1">Agent Delivery Runs</h2>
-        <p className="text-secondary small">Review assigned cylinder shipments and coordinate route handovers</p>
+      <div className="mb-4 d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <h2 className="text-white mb-1">Agent Delivery Runs</h2>
+          <p className="text-secondary small">Review assigned cylinder shipments and coordinate route handovers</p>
+        </div>
+        {locationSharing && (
+          <span className="badge-status badge-delivery small">
+            <i className="bi bi-broadcast me-1"></i>Sharing live location
+          </span>
+        )}
       </div>
+
+      {locationError && (
+        <div className="alert alert-warning border-warning-subtle bg-warning bg-opacity-10 text-warning rounded-3 small p-3 mb-4">
+          {locationError}
+        </div>
+      )}
 
       {errorMsg && (
         <div className="alert alert-danger border-danger-subtle bg-danger bg-opacity-10 text-danger rounded-3 small p-3 mb-4">
